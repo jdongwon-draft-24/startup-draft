@@ -1,0 +1,22 @@
+# 비밀 값(API 키 등)이 들어 있는 환경 설정 파일
+.env
+.env.*
+
+# Streamlit 비밀 값 파일
+.streamlit/secrets.toml
+
+# 파이썬이 실행할 때 자동으로 만드는 임시 파일
+__pycache__/
+*.pyc
+
+# Claude Code 개인 설정 (내 컴퓨터에서만 쓰는 권한 설정)
+.claude/settings.local.json
+
+# 내 컴퓨터의 파이썬 설치 폴더를 가리키는 바로가기 (Streamlit 패키지에 딸려 오는 스킬)
+.agents/
+.claude/skills/developing-with-streamlit
+
+# 윈도우·맥이 자동으로 만드는 시스템 파일
+Thumbs.db
+desktop.ini
+.DS_Store
