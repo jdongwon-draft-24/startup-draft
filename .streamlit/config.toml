@@ -1,0 +1,15 @@
+# 앱 전체 색 — 배경 #F5F7FA · 글자 #243447 · 강조 #16A085
+[theme]
+base = "light"
+primaryColor = "#16A085"
+backgroundColor = "#F5F7FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#243447"
+borderColor = "#E1E6EC"
+baseRadius = "large"
+buttonRadius = "full"
+headingFontWeights = [700, 700, 600, 600, 600, 600]
+
+[theme.sidebar]
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F7FA"

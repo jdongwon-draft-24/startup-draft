@@ -446,6 +446,66 @@ def toggle(item, key):
         st.session_state.done.remove(item)
 
 
+# 첫 화면(랜딩 페이지) — 서비스 소개. streamlit run app.py 로 열면 이 화면이 먼저 뜬다
+if "page" not in st.session_state:
+    st.session_state.page = "landing"
+
+
+def open_page(page):
+    st.session_state.page = page
+
+
+# 첫 화면 문구는 PRD.md 의 제목·한 줄 정의·넣을 기능 1~3 을 그대로 옮겼다
+LANDING_FEATURES = [
+    (":material/edit_note:", "사업자등록 정보(업종, 등록일)를 입력하면 → 그 업종에 맞는 세무·행정 항목 목록이 자동으로 뜬다"),
+    (":material/task_alt:", "항목을 하나씩 완료 체크하면 → 아직 안 한 항목만 남아서 한눈에 보인다"),
+    (
+        ":material/travel_explore:",
+        '항목 자료에 없는 업종을 입력하면 → AI가 항목 자료에 있는 업종 가운데 가장 비슷한 업종을 찾아 "이 업종으로 볼까요?" 하고 물어본다',
+    ),
+]
+
+if st.session_state.page == "landing":
+    # 앱 전체 색은 .streamlit/config.toml 에 있고, 여기서는 첫 화면 카드와 시작하기 버튼만 다듬는다
+    st.html(
+        """
+        <style>
+        .stApp, [data-testid="stHeader"] { background: #F5F7FA; }
+        .st-key-landing, .st-key-landing h1, .st-key-landing h3, .st-key-landing p { color: #243447; }
+        .st-key-landing [data-testid="stIconMaterial"] { color: #16A085; }
+        .st-key-landing [class*="st-key-feature_"] { background: #FFFFFF; height: 100%; }
+        .st-key-start button { background: #16A085; border-color: #16A085; color: #FFFFFF; }
+        .st-key-start button:hover { background: #138D75; border-color: #138D75; color: #FFFFFF; }
+        </style>
+        """
+    )
+
+    _, center, _ = st.columns([1, 4, 1])
+    with center, st.container(key="landing"):
+        st.space("large")
+        st.title("사업자등록 정보 입력")
+        st.markdown(
+            "사업자등록한 지 1개월 된 IT 서비스 개발업 1인 창업자가 업종과 등록일을 넣으면 그 업종에 맞는 "
+            "세무·행정 항목 목록이 나와서, 선배나 세무사에게 묻지 않아도 무엇을 해야 하는지 알 수 있다."
+        )
+        st.space("medium")
+
+        st.subheader("하는 일")
+        for column, (number, (icon, text)) in zip(st.columns(3), enumerate(LANDING_FEATURES, start=1)):
+            with column, st.container(border=True, key=f"feature_{number}"):
+                st.markdown(f"## {icon}")
+                st.markdown(text)
+        st.space("medium")
+
+        st.button("시작하기", key="start", type="primary", width="stretch", on_click=open_page, args=("app",))
+        st.caption("문구 출처: PRD.md (한 줄 정의 · 넣을 기능 1~3)")
+    st.stop()
+
+# 기능 화면 사이드바 맨 위 — 첫 화면으로 돌아가는 버튼
+with st.sidebar:
+    st.button("첫 화면으로 돌아가기", icon=":material/home:", width="stretch", on_click=open_page, args=("landing",))
+
+
 # 왼쪽 사이드바 — 사업자등록 정보 입력 (넣는 자리)
 with st.sidebar:
     st.header("사업자등록 정보 입력")
@@ -464,7 +524,7 @@ with st.sidebar:
     registered_on = st.date_input("사업자등록일", value=None, format="YYYY-MM-DD")
 
     # 단추
-    if st.button("조회", width="stretch"):
+    if st.button("조회", type="primary", width="stretch"):
         industry = (industry or "").strip()
         if not industry or registered_on is None:
             st.error("업종과 사업자등록일을 입력해 주세요")
@@ -527,7 +587,7 @@ def show_checklist():
     registered_on = st.session_state.registered_on
 
     # 맨 위 — 입력한 업종과 등록일
-    with st.container(border=True):
+    with st.container(border=True, key="card_summary"):
         if suggested:
             shown = f"입력한 업종: {st.session_state.industry} → 비슷한 업종: {group['업종']}"
         else:
@@ -543,7 +603,7 @@ def show_checklist():
             key = f"item_{number}"
             # 오른쪽 열에서 체크해도 이쪽 체크 표시가 함께 바뀌도록 그리기 전에 맞춰 둔다
             st.session_state[key] = item in st.session_state.done
-            with st.container(border=True):
+            with st.container(border=True, key=f"card_all_{number}"):
                 st.checkbox(rf"{number}\. {item}", key=key, on_change=toggle, args=(item, key))
                 # 등록일 기준으로 계산한 마감할 기한
                 st.caption(deadline_text(group["기한_기준"][item], registered_on))
@@ -552,8 +612,8 @@ def show_checklist():
         # 화면3 — 남은 항목 확인 (완료 위 / 남은 항목 아래)
         st.subheader("남은 항목 확인")
 
-        for item in done:
-            with st.container(border=True):
+        for number, item in enumerate(done, start=1):
+            with st.container(border=True, key=f"card_done_{number}"):
                 st.checkbox(f"~~{item}~~", value=True, disabled=True, key=f"done_{item}")
 
         st.divider()
@@ -563,9 +623,9 @@ def show_checklist():
         remaining = sorted(remaining, key=lambda item: deadline_order(group["기한_기준"][item], registered_on))
         today = datetime.date.today()
 
-        for item in remaining:
+        for number, item in enumerate(remaining, start=1):
             key = f"left_{item}"
-            with st.container(border=True):
+            with st.container(border=True, key=f"card_left_{number}"):
                 st.checkbox(item, value=False, key=key, on_change=toggle, args=(item, key))
                 # 남은 항목에만 마감할 기한을 보여 준다 — 완료한 항목에는 보여 주지 않는다
                 rule = group["기한_기준"][item]
@@ -589,8 +649,22 @@ def show_sources():
         st.markdown(f"- {line_no}번째 줄: {reason}")
 
 
-checklist_tab, sources_tab = st.tabs(["체크리스트", "자료 출처"])
-with checklist_tab:
-    show_checklist()
-with sources_tab:
-    show_sources()
+# 기능 화면 카드 — 흰 바탕에 옅은 그림자, 맨 위 요약 칸은 왼쪽에 강조색 줄
+st.html(
+    """
+    <style>
+    [class*="st-key-card_"] { background: #FFFFFF; box-shadow: 0 1px 3px rgba(36, 52, 71, 0.06); }
+    .st-key-card_summary { border-left: 4px solid #16A085; }
+    </style>
+    """
+)
+
+# 내용은 가운데로 모으고 위쪽에 여백을 둔다
+_, center, _ = st.columns([1, 10, 1])
+with center:
+    st.space("medium")
+    checklist_tab, sources_tab = st.tabs(["체크리스트", "자료 출처"])
+    with checklist_tab:
+        show_checklist()
+    with sources_tab:
+        show_sources()
