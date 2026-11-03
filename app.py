@@ -229,6 +229,9 @@ def load_items(path):
 
 ITEMS, SKIPPED = load_items(CSV_PATH)
 
+# 전체 항목과 남은 항목 두 열이 나란히 들어가도록 화면 폭을 넓게 쓴다
+st.set_page_config(page_title="사업자등록 정보 입력", layout="wide")
+
 if "screen" not in st.session_state:
     st.session_state.screen = 1
     st.session_state.done = []
@@ -443,14 +446,13 @@ def toggle(item, key):
         st.session_state.done.remove(item)
 
 
-if st.session_state.screen == 1:
-    # 화면1 — 사업자등록 정보 입력
-    st.title("사업자등록 정보 입력")
+# 왼쪽 사이드바 — 사업자등록 정보 입력 (넣는 자리)
+with st.sidebar:
+    st.header("사업자등록 정보 입력")
 
     # 샘플 항목 자료에 있는 업종을 자료에 나온 차례대로 보여 준다
     industries = [group["업종"] for group in ITEMS.values()]
 
-    # 넣는 자리
     # 샘플 항목 자료의 업종을 고르거나, 목록에 없는 업종은 직접 쳐서 넣는다
     industry = st.selectbox(
         "업종",
@@ -481,10 +483,18 @@ if st.session_state.screen == 1:
             go_to(2)
             st.rerun()
 
-    st.caption("※ 입력 후 조회를 누르면 업종·등록일 기준 세무·행정 항목이 나옵니다")
+    if st.session_state.screen != 1:
+        st.button("처음으로 돌아가기", width="stretch", on_click=go_to, args=(1,))
+
     st.caption(f"업종 목록 출처: data/sample-tax-items.csv · 모두 {len(industries)}개")
 
-else:
+
+def show_checklist():
+    """「체크리스트」 탭 — 맨 위에 업종 요약·비슷한 업종 질문, 아래 두 열에 전체 항목과 남은 항목."""
+    if st.session_state.screen == 1:
+        st.caption("※ 입력 후 조회를 누르면 업종·등록일 기준 세무·행정 항목이 나옵니다")
+        return
+
     group = ITEMS.get(industry_key(st.session_state.industry))
     suggested = None
     if group is None:
@@ -500,7 +510,7 @@ else:
             group = ITEMS[suggested]
 
     if group is None:
-        st.title("세무·행정 항목 목록")
+        st.subheader("세무·행정 항목 목록")
         if suggested and st.session_state.get("accepted") is None:
             st.markdown(f"비슷한 업종: {ITEMS[suggested]['업종']} — 이 업종으로 볼까요?")
             yes_col, no_col = st.columns(2)
@@ -510,41 +520,37 @@ else:
             st.info(f"'{st.session_state.industry}' 업종의 세무·행정 항목 자료가 아직 없어요.")
             if st.session_state.get("suggestion_error"):
                 st.caption(f"AI에 연결하지 못해 비슷한 업종을 찾지 못했어요: {st.session_state.suggestion_error}")
-        st.button("처음으로 돌아가기", width="stretch", on_click=go_to, args=(1,))
-        st.stop()
+        return
     all_items = group["항목"]
     done = [item for item in all_items if item in st.session_state.done]
     remaining = [item for item in all_items if item not in st.session_state.done]
+    registered_on = st.session_state.registered_on
 
-    if st.session_state.screen == 2:
+    # 맨 위 — 입력한 업종과 등록일
+    with st.container(border=True):
+        if suggested:
+            shown = f"입력한 업종: {st.session_state.industry} → 비슷한 업종: {group['업종']}"
+        else:
+            shown = f"업종: {group['업종']}"
+        st.markdown(f"{shown} / 등록일: {registered_on:%Y-%m-%d}")
+
+    all_col, left_col = st.columns(2, gap="large")
+
+    with all_col:
         # 화면2 — 세무·행정 항목 목록
-        st.title("세무·행정 항목 목록")
-
-        with st.container(border=True):
-            if suggested:
-                shown = f"입력한 업종: {st.session_state.industry} → 비슷한 업종: {group['업종']}"
-            else:
-                shown = f"업종: {group['업종']}"
-            st.markdown(f"{shown} / 등록일: {st.session_state.registered_on:%Y-%m-%d}")
-
+        st.subheader("세무·행정 항목 목록")
         for number, item in enumerate(all_items, start=1):
             key = f"item_{number}"
+            # 오른쪽 열에서 체크해도 이쪽 체크 표시가 함께 바뀌도록 그리기 전에 맞춰 둔다
+            st.session_state[key] = item in st.session_state.done
             with st.container(border=True):
-                st.checkbox(
-                    rf"{number}\. {item}",
-                    value=item in st.session_state.done,
-                    key=key,
-                    on_change=toggle,
-                    args=(item, key),
-                )
+                st.checkbox(rf"{number}\. {item}", key=key, on_change=toggle, args=(item, key))
                 # 등록일 기준으로 계산한 마감할 기한
-                st.caption(deadline_text(group["기한_기준"][item], st.session_state.registered_on))
+                st.caption(deadline_text(group["기한_기준"][item], registered_on))
 
-        st.button("처음으로 돌아가기", width="stretch", on_click=go_to, args=(1,))
-
-    else:
+    with left_col:
         # 화면3 — 남은 항목 확인 (완료 위 / 남은 항목 아래)
-        st.title("남은 항목 확인")
+        st.subheader("남은 항목 확인")
 
         for item in done:
             with st.container(border=True):
@@ -554,7 +560,6 @@ else:
         st.caption("완료 항목은 목록에서 제외되고, 아래에 남은 항목만 표시됩니다")
 
         # 남은 항목은 마감이 가까운 순으로 보여 준다 — 날짜를 정할 수 없는 항목은 원래 순서대로 맨 뒤
-        registered_on = st.session_state.registered_on
         remaining = sorted(remaining, key=lambda item: deadline_order(group["기한_기준"][item], registered_on))
         today = datetime.date.today()
 
@@ -572,9 +577,20 @@ else:
 
         st.button("목록으로 돌아가기", width="stretch", on_click=go_to, args=(2,))
 
+    # PRD 에 "화면2·화면3 아래 출처"로 정해져 있어 두 열 바로 아래에 둔다
     if suggested:
         st.caption(f"비슷한 업종: AI({GEMINI_MODEL}) 제안 · 틀릴 수 있어요")
 
-    with st.expander(f"출처: data/sample-tax-items.csv · 정리하며 뺀 줄 {len(SKIPPED)}개"):
-        for line_no, reason in SKIPPED:
-            st.markdown(f"- {line_no}번째 줄: {reason}")
+
+def show_sources():
+    """「자료 출처」 탭 — 가끔 보는 항목 자료 출처와 정리하며 뺀 줄 목록."""
+    st.markdown(f"출처: data/sample-tax-items.csv · 정리하며 뺀 줄 {len(SKIPPED)}개")
+    for line_no, reason in SKIPPED:
+        st.markdown(f"- {line_no}번째 줄: {reason}")
+
+
+checklist_tab, sources_tab = st.tabs(["체크리스트", "자료 출처"])
+with checklist_tab:
+    show_checklist()
+with sources_tab:
+    show_sources()
