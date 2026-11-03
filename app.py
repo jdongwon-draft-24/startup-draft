@@ -484,10 +484,6 @@ if st.session_state.page == "landing":
     with center, st.container(key="landing"):
         st.space("large")
         st.title("사업자등록 정보 입력")
-        st.markdown(
-            "사업자등록한 지 1개월 된 IT 서비스 개발업 1인 창업자가 업종과 등록일을 넣으면 그 업종에 맞는 "
-            "세무·행정 항목 목록이 나와서, 선배나 세무사에게 묻지 않아도 무엇을 해야 하는지 알 수 있다."
-        )
         st.space("medium")
 
         st.subheader("하는 일")
